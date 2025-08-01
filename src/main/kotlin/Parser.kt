@@ -12,28 +12,26 @@ object Parser {
 
   fun inputToCommand(input: List<String>): Command {
     if (input.isEmpty()) {
-      return Command(CommandType.UNKNOWN, input, stdoutWriter)
+      return Command(CommandType.UNKNOWN, input, stdoutWriter, stdoutWriter)
     }
     // Output the command to either standard output or a file
-    val redirectIndex = input.indexOfFirst { it == ">" || it == "1>" }
+    val redirectIndex = input.indexOfFirst { it == ">" || it == "1>" || it == "2>" }
     val commandList = if (redirectIndex != -1) input.subList(0, redirectIndex) else input
-    val output =
-        if (redirectIndex != -1) {
-          // If a redirect is found, create a PrintWriter for the output file
-          val outputFileName =
-              input
-                  .subList(redirectIndex + 1, input.size)
-                  .filter { it.isNotBlank() }
-                  .joinToString("")
-          val outputFile = java.io.File(outputFileName)
-          outputFile.parentFile?.mkdirs() // Ensure parent directories exist
-          PrintWriter(FileOutputStream(outputFile), true)
-        } else {
-          stdoutWriter // Default to standard output
-        }
+    val stdOut = getRedirect(input, listOf(">", "1>"))
+    val stdErr = getRedirect(input, listOf("2>"))
     // Extract the command type and sub-command type
     val commandType = CommandType.fromInput(input[0])
-    return Command(commandType, commandList, output)
+    return Command(commandType, commandList, stdOut, stdErr)
+  }
+
+  private fun getRedirect(input: List<String>, sep: List<String>): PrintWriter {
+    val redirectIndex = input.indexOfFirst { it in sep }
+    if (redirectIndex == -1) return stdoutWriter // No redirection found, return standard output
+    val outputFileName =
+        input.subList(redirectIndex + 1, input.size).filter { it.isNotBlank() }.joinToString("")
+    val outputFile = java.io.File(outputFileName)
+    outputFile.parentFile?.mkdirs() // Ensure parent directories exist
+    return PrintWriter(FileOutputStream(outputFile), true)
   }
 
   private fun inputReader(reader: BufferedReader): List<String> {

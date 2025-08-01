@@ -9,9 +9,9 @@ object Commander {
 
   fun execute(command: Command, directories: List<Directory> = listOf()) {
     when (command.type) {
-      CommandType.ECHO -> command.output.println(command.rawInput.drop(2).joinToString(""))
+      CommandType.ECHO -> command.stdOut.println(command.rawInput.drop(2).joinToString(""))
       CommandType.EXIT -> exitProcess(0)
-      CommandType.PWD -> command.output.println(currentDir.toString())
+      CommandType.PWD -> command.stdOut.println(currentDir.toString())
       CommandType.TYPE -> handleTypeCommand(command, directories)
       CommandType.CD -> changeDir(command)
       CommandType.REDIRECT ->
@@ -38,7 +38,7 @@ object Commander {
     if (proposedPath.exists()) {
       currentDir = proposedPath
     } else {
-      command.output.println("cd: ${proposedPath}: No such file or directory")
+      command.stdOut.println("cd: ${proposedPath}: No such file or directory")
     }
   }
 
@@ -46,7 +46,7 @@ object Commander {
     // If the command is unknown, try to find it in the directories
     val executable = findExecutable(command.rawInput[0], directories)
     when (executable) {
-      null -> command.output.println("${command.rawInput[0]}: command not found")
+      null -> command.stdOut.println("${command.rawInput[0]}: command not found")
       else -> executeFile(command, executable, command.rawInput.drop(2).filter(String::isNotBlank))
     }
   }
@@ -57,13 +57,13 @@ object Commander {
     val process = processBuilder.start()
     process.inputStream.bufferedReader().use { reader ->
       for (line in reader.lines()) {
-        command.output.println(line)
+        command.stdOut.println(line)
       }
     }
 
     process.errorStream.bufferedReader().use { reader ->
       for (line in reader.lines()) {
-        println(line)
+        command.errOut.println(line)
       }
     }
   }
@@ -76,12 +76,12 @@ object Commander {
     val subCommand = CommandType.fromInput(command.rawInput[2])
     if (subCommand == CommandType.UNKNOWN) {
       val executable = findExecutable(command.rawInput[2], directories)
-      if (executable == null) command.output.println("${command.rawInput[2]}: not found")
-      else command.output.println("${executable.name} is ${executable.absolutePath}")
+      if (executable == null) command.stdOut.println("${command.rawInput[2]}: not found")
+      else command.stdOut.println("${executable.name} is ${executable.absolutePath}")
       return
     }
     // If the sub-command is a known command, print that it is a shell builtin
-    command.output.println("${subCommand.toString().lowercase()} is a shell builtin")
+    command.stdOut.println("${subCommand.toString().lowercase()} is a shell builtin")
   }
 
   private fun findExecutable(command: String, directories: List<Directory>): File? {

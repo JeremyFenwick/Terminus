@@ -1,6 +1,11 @@
 import java.io.PrintWriter
 
-data class Command(val type: CommandType, val rawInput: List<String>, val output: PrintWriter)
+data class Command(
+    val type: CommandType,
+    val rawInput: List<String>,
+    val stdOut: PrintWriter,
+    val errOut: PrintWriter
+)
 
 enum class CommandType() {
   ECHO,
