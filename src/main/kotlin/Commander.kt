@@ -3,36 +3,12 @@ import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.system.exitProcess
 
-enum class CommandType() {
-  ECHO,
-  EXIT,
-  TYPE,
-  PWD,
-  CD,
-  UNKNOWN;
-
-  companion object {
-    fun fromInput(input: String): CommandType {
-      return when (input) {
-        "echo" -> ECHO
-        "exit" -> EXIT
-        "type" -> TYPE
-        "cd" -> CD
-        "pwd" -> PWD
-        else -> UNKNOWN
-      }
-    }
-  }
-}
-
-data class Command(val type: CommandType, val rawInput: List<String>)
-
 object Commander {
   var currentDir: Path = File(".").toPath().toAbsolutePath().normalize()
 
   fun execute(command: Command, directories: List<Directory>) {
     when (command.type) {
-      CommandType.ECHO -> println(command.rawInput.drop(1).joinToString(" "))
+      CommandType.ECHO -> println(command.rawInput.drop(2).joinToString(""))
       CommandType.EXIT -> exitProcess(0)
       CommandType.PWD -> println(currentDir)
       CommandType.TYPE -> handleTypeCommand(command, directories)
@@ -41,26 +17,16 @@ object Commander {
     }
   }
 
-  fun parse(input: String): Command {
-    val parts = input.split(" ")
-    if (parts.isEmpty()) {
-      return Command(CommandType.UNKNOWN, parts)
-    }
-    // Extract the command type and sub-command type
-    val commandType = CommandType.fromInput(parts[0])
-    return Command(commandType, parts)
-  }
-
   private fun changeDir(command: Command) {
-    if (command.rawInput.size < 2) return
+    if (command.rawInput.size < 3) return
     // If the user input starts with a tilde (~), replace it with the user's home directory
     val homeDir = System.getenv("HOME") ?: "/"
     // Generate the new path the user has requested
     val userPath =
         when {
-          command.rawInput[1] == "~" -> Path.of(homeDir)
-          command.rawInput[1].startsWith("~/") -> Path.of(homeDir, command.rawInput[1].substring(2))
-          else -> Path.of(command.rawInput[1])
+          command.rawInput[2] == "~" -> Path.of(homeDir)
+          command.rawInput[2].startsWith("~/") -> Path.of(homeDir, command.rawInput[2].substring(2))
+          else -> Path.of(command.rawInput[2])
         }
 
     val proposedPath = currentDir.resolve(userPath).normalize()
@@ -78,7 +44,7 @@ object Commander {
     val executable = findExecutable(command.rawInput[0], directories)
     when (executable) {
       null -> println("${command.rawInput[0]}: command not found")
-      else -> executeFile(executable, command.rawInput.drop(1))
+      else -> executeFile(executable, command.rawInput.drop(2).filter(String::isNotBlank))
     }
   }
 
@@ -95,14 +61,14 @@ object Commander {
   }
 
   private fun handleTypeCommand(command: Command, directories: List<Directory>) {
-    if (command.rawInput.size < 2) {
+    if (command.rawInput.size < 3) {
       return
     }
     // If the sub-command is unknown, try to find it in the directories
-    val subCommand = CommandType.fromInput(command.rawInput[1])
+    val subCommand = CommandType.fromInput(command.rawInput[2])
     if (subCommand == CommandType.UNKNOWN) {
-      val executable = findExecutable(command.rawInput[1], directories)
-      if (executable == null) println("${command.rawInput[1]}: not found")
+      val executable = findExecutable(command.rawInput[2], directories)
+      if (executable == null) println("${command.rawInput[2]}: not found")
       else println("${executable.name} is ${executable.absolutePath}")
       return
     }
