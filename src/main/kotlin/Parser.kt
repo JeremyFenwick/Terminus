@@ -47,6 +47,11 @@ object Parser {
           flushBuffer()
           if (result.last() == " ") continue else result.add(" ")
         }
+        '\\' -> {
+          // Read the next character and append it to the buffer
+          val nextChar = reader.read().toChar()
+          buffer.append(nextChar)
+        }
         '\'' -> {
           // Read until the next single quote
           var nextChar = reader.read().toChar()
