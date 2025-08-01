@@ -1,18 +1,39 @@
 import java.io.BufferedReader
+import java.io.FileOutputStream
+import java.io.PrintWriter
 
 object Parser {
+  private val stdoutWriter = PrintWriter(System.out, true)
+
   fun parseInput(reader: BufferedReader): Command {
     val input = inputReader(reader)
     return inputToCommand(input)
   }
 
-  private fun inputToCommand(input: List<String>): Command {
+  fun inputToCommand(input: List<String>): Command {
     if (input.isEmpty()) {
-      return Command(CommandType.UNKNOWN, input)
+      return Command(CommandType.UNKNOWN, input, stdoutWriter)
     }
+    // Output the command to either standard output or a file
+    val redirectIndex = input.indexOfFirst { it == ">" || it == "1>" }
+    val commandList = if (redirectIndex != -1) input.subList(0, redirectIndex) else input
+    val output =
+        if (redirectIndex != -1) {
+          // If a redirect is found, create a PrintWriter for the output file
+          val outputFileName =
+              input
+                  .subList(redirectIndex + 1, input.size)
+                  .filter { it.isNotBlank() }
+                  .joinToString("")
+          val outputFile = java.io.File(outputFileName)
+          outputFile.parentFile?.mkdirs() // Ensure parent directories exist
+          PrintWriter(FileOutputStream(outputFile), true)
+        } else {
+          stdoutWriter // Default to standard output
+        }
     // Extract the command type and sub-command type
     val commandType = CommandType.fromInput(input[0])
-    return Command(commandType, input)
+    return Command(commandType, commandList, output)
   }
 
   private fun inputReader(reader: BufferedReader): List<String> {
@@ -42,8 +63,7 @@ object Parser {
       while (nextChar != '"') {
         // Handle escaped characters
         if (nextChar == '\\') {
-          // If the next character is an escaped quote or backslash, append that next character as
-          // we escaped it
+          // If the next character is escapable, append that character instead
           val lookAhead = reader.read().toChar()
           if (lookAhead == '"' ||
               lookAhead == '\\' ||

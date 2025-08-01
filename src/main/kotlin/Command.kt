@@ -1,4 +1,6 @@
-data class Command(val type: CommandType, val rawInput: List<String>)
+import java.io.PrintWriter
+
+data class Command(val type: CommandType, val rawInput: List<String>, val output: PrintWriter)
 
 enum class CommandType() {
   ECHO,
@@ -6,6 +8,7 @@ enum class CommandType() {
   TYPE,
   PWD,
   CD,
+  REDIRECT,
   UNKNOWN;
 
   companion object {
