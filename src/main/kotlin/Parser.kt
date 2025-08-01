@@ -1,16 +1,6 @@
 import java.io.BufferedReader
 
 object Parser {
-  fun parseInput(input: String): Command {
-    val parts = input.split(" ")
-    if (parts.isEmpty()) {
-      return Command(CommandType.UNKNOWN, parts)
-    }
-    // Extract the command type and sub-command type
-    val commandType = CommandType.fromInput(parts[0])
-    return Command(commandType, parts)
-  }
-
   fun parseInput(reader: BufferedReader): Command {
     val input = inputReader(reader)
     return inputToCommand(input)
