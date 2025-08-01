@@ -56,6 +56,15 @@ object Parser {
           }
           flushBuffer()
         }
+        '"' -> {
+          // Read until the next double quote
+          var nextChar = reader.read().toChar()
+          while (nextChar != '"') {
+            buffer.append(nextChar)
+            nextChar = reader.read().toChar()
+          }
+          flushBuffer()
+        }
         else -> buffer.append(char)
       }
     }
