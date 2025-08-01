@@ -1,4 +1,6 @@
 import java.io.File
+import java.nio.file.Path
+import kotlin.io.path.exists
 import kotlin.system.exitProcess
 
 enum class CommandType() {
@@ -6,6 +8,7 @@ enum class CommandType() {
   EXIT,
   TYPE,
   PWD,
+  CD,
   UNKNOWN;
 
   companion object {
@@ -14,6 +17,7 @@ enum class CommandType() {
         "echo" -> ECHO
         "exit" -> EXIT
         "type" -> TYPE
+        "cd" -> CD
         "pwd" -> PWD
         else -> UNKNOWN
       }
@@ -24,12 +28,15 @@ enum class CommandType() {
 data class Command(val type: CommandType, val rawInput: List<String>)
 
 object Commander {
+  var currentDir: Path = File(".").toPath().toAbsolutePath().normalize()
+
   fun execute(command: Command, directories: List<Directory>) {
     when (command.type) {
       CommandType.ECHO -> println(command.rawInput.drop(1).joinToString(" "))
       CommandType.EXIT -> exitProcess(0)
-      CommandType.PWD -> println(File(".").canonicalPath)
+      CommandType.PWD -> println(currentDir)
       CommandType.TYPE -> handleTypeCommand(command, directories)
+      CommandType.CD -> changeDir(command)
       CommandType.UNKNOWN -> handleUnknownCommand(command, directories)
     }
   }
@@ -42,6 +49,19 @@ object Commander {
     // Extract the command type and sub-command type
     val commandType = CommandType.fromInput(parts[0])
     return Command(commandType, parts)
+  }
+
+  private fun changeDir(command: Command) {
+    if (command.rawInput.size < 2) return
+
+    val inputPath = (currentDir.resolve(command.rawInput[1]))
+    val proposedPath =
+        if (inputPath.isAbsolute) inputPath.normalize()
+        else currentDir.resolve(inputPath).normalize()
+    if (proposedPath.exists()) currentDir = proposedPath
+    else {
+      println("cd: ${proposedPath}: No such file or directory")
+    }
   }
 
   private fun handleUnknownCommand(command: Command, directories: List<Directory>) {
