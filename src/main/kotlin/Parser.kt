@@ -45,7 +45,11 @@ object Parser {
           // If the next character is an escaped quote or backslash, append that next character as
           // we escaped it
           val lookAhead = reader.read().toChar()
-          if (lookAhead == '"' || lookAhead == '\\') {
+          if (lookAhead == '"' ||
+              lookAhead == '\\' ||
+              lookAhead == '$' ||
+              lookAhead == '`' ||
+              lookAhead == '\n') {
             nextChar = lookAhead
           } else {
             // If it's not an escaped quote or backslash, just append the current character
