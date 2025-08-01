@@ -1,6 +1,5 @@
 import java.io.File
 import java.nio.file.Path
-import jdk.jshell.spi.ExecutionControl
 import kotlin.io.path.exists
 import kotlin.system.exitProcess
 
@@ -14,8 +13,6 @@ object Commander {
       CommandType.PWD -> command.stdOut.println(currentDir.toString())
       CommandType.TYPE -> handleTypeCommand(command, directories)
       CommandType.CD -> changeDir(command)
-      CommandType.REDIRECT ->
-          throw ExecutionControl.NotImplementedException("Redirect command not implemented")
       CommandType.UNKNOWN -> handleUnknownCommand(command, directories)
     }
   }

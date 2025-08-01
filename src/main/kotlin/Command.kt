@@ -13,7 +13,6 @@ enum class CommandType() {
   TYPE,
   PWD,
   CD,
-  REDIRECT,
   UNKNOWN;
 
   companion object {

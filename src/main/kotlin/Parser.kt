@@ -3,7 +3,11 @@ import java.io.FileOutputStream
 import java.io.PrintWriter
 
 object Parser {
-  private val stdoutWriter = PrintWriter(System.out, true)
+  private val defaultWriter = PrintWriter(System.out, true)
+  private val redirectSymbols = listOf(">", "1>", "2>", ">>", "1>>", "2>>")
+  private val appendSymbols = listOf(">>", "1>>", "2>>")
+  private val stdOutSymbols = listOf(">", "1>", ">>", "1>>")
+  private val stdErrSymbols = listOf("2>", "2>>")
 
   fun parseInput(reader: BufferedReader): Command {
     val input = inputReader(reader)
@@ -12,13 +16,13 @@ object Parser {
 
   fun inputToCommand(input: List<String>): Command {
     if (input.isEmpty()) {
-      return Command(CommandType.UNKNOWN, input, stdoutWriter, stdoutWriter)
+      return Command(CommandType.UNKNOWN, input, defaultWriter, defaultWriter)
     }
     // Output the command to either standard output or a file
-    val redirectIndex = input.indexOfFirst { it == ">" || it == "1>" || it == "2>" }
+    val redirectIndex = input.indexOfFirst { it in redirectSymbols }
     val commandList = if (redirectIndex != -1) input.subList(0, redirectIndex) else input
-    val stdOut = getRedirect(input, listOf(">", "1>"))
-    val stdErr = getRedirect(input, listOf("2>"))
+    val stdOut = getRedirect(input, stdOutSymbols)
+    val stdErr = getRedirect(input, stdErrSymbols)
     // Extract the command type and sub-command type
     val commandType = CommandType.fromInput(input[0])
     return Command(commandType, commandList, stdOut, stdErr)
@@ -26,12 +30,13 @@ object Parser {
 
   private fun getRedirect(input: List<String>, sep: List<String>): PrintWriter {
     val redirectIndex = input.indexOfFirst { it in sep }
-    if (redirectIndex == -1) return stdoutWriter // No redirection found, return standard output
+    val appendMode = appendSymbols.any { it in input }
+    if (redirectIndex == -1) return defaultWriter // No redirection found, return standard output
     val outputFileName =
         input.subList(redirectIndex + 1, input.size).filter { it.isNotBlank() }.joinToString("")
     val outputFile = java.io.File(outputFileName)
     outputFile.parentFile?.mkdirs() // Ensure parent directories exist
-    return PrintWriter(FileOutputStream(outputFile), true)
+    return PrintWriter(FileOutputStream(outputFile, appendMode), true)
   }
 
   private fun inputReader(reader: BufferedReader): List<String> {
