@@ -57,10 +57,11 @@ object Commander {
     val homeDir = System.getenv("HOME") ?: "/"
     // Generate the new path the user has requested
     val userPath =
-        if (command.rawInput[1] == "~") Path.of(homeDir)
-        else if (command.rawInput[1].startsWith("~/"))
-            Path.of(homeDir, command.rawInput[1].substring(2))
-        else Path.of(command.rawInput[1])
+        when {
+          command.rawInput[1] == "~" -> Path.of(homeDir)
+          command.rawInput[1].startsWith("~/") -> Path.of(homeDir, command.rawInput[1].substring(2))
+          else -> Path.of(command.rawInput[1])
+        }
 
     val proposedPath = currentDir.resolve(userPath).normalize()
     // If the proposed path exists, change the current directory
