@@ -35,6 +35,41 @@ object Parser {
         buffer.clear()
       }
     }
+    // Function to read a single-quoted string
+    fun readSingleQuotedString() {
+      // Read until the next single quote
+      var nextChar = reader.read().toChar()
+      while (nextChar != '\'') {
+        buffer.append(nextChar)
+        nextChar = reader.read().toChar()
+      }
+      flushBuffer()
+    }
+    // Function to read a double-quoted string
+    fun readDoubleQuotedString() {
+      // Read until the next double quote
+      var nextChar = reader.read().toChar()
+      while (nextChar != '"') {
+        // Handle escaped characters
+        if (nextChar == '\\') {
+          // If the next character is an escaped quote or backslash, append that next character as
+          // we escaped it
+          val lookAhead = reader.read().toChar()
+          if (lookAhead == '"' || lookAhead == '\\') {
+            nextChar = lookAhead
+          } else {
+            // If it's not an escaped quote or backslash, just append the current character
+            // We skip reading the next character at the end as we normally would
+            buffer.append(nextChar)
+            nextChar = lookAhead
+            continue
+          }
+        }
+        buffer.append(nextChar)
+        nextChar = reader.read().toChar()
+      }
+      flushBuffer()
+    }
     // Read input until a newline character is encountered
     while (true) {
       val char = reader.read().toChar()
@@ -45,31 +80,15 @@ object Parser {
         }
         ' ' -> {
           flushBuffer()
-          if (result.last() == " ") continue else result.add(" ")
+          if (result.last() != " ") result.add(" ")
         }
         '\\' -> {
           // Read the next character and append it to the buffer
           val nextChar = reader.read().toChar()
           buffer.append(nextChar)
         }
-        '\'' -> {
-          // Read until the next single quote
-          var nextChar = reader.read().toChar()
-          while (nextChar != '\'') {
-            buffer.append(nextChar)
-            nextChar = reader.read().toChar()
-          }
-          flushBuffer()
-        }
-        '"' -> {
-          // Read until the next double quote
-          var nextChar = reader.read().toChar()
-          while (nextChar != '"') {
-            buffer.append(nextChar)
-            nextChar = reader.read().toChar()
-          }
-          flushBuffer()
-        }
+        '\'' -> readSingleQuotedString()
+        '"' -> readDoubleQuotedString()
         else -> buffer.append(char)
       }
     }
