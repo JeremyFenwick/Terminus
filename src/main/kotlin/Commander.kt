@@ -14,6 +14,7 @@ enum class CommandType() {
         "echo" -> ECHO
         "exit" -> EXIT
         "type" -> TYPE
+        "pwd" -> PWD
         else -> UNKNOWN
       }
     }
@@ -27,8 +28,8 @@ object Commander {
     when (command.type) {
       CommandType.ECHO -> println(command.rawInput.drop(1).joinToString(" "))
       CommandType.EXIT -> exitProcess(0)
-      CommandType.TYPE -> handleTypeCommand(command, directories)
       CommandType.PWD -> println(File(".").canonicalPath)
+      CommandType.TYPE -> handleTypeCommand(command, directories)
       CommandType.UNKNOWN -> handleUnknownCommand(command, directories)
     }
   }
