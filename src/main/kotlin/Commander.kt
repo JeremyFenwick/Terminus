@@ -53,13 +53,21 @@ object Commander {
 
   private fun changeDir(command: Command) {
     if (command.rawInput.size < 2) return
+    // If the user input starts with a tilde (~), replace it with the user's home directory
+    val homeDir = System.getenv("HOME") ?: "/"
+    // Generate the new path the user has requested
+    val userPath =
+        if (command.rawInput[1] == "~") Path.of(homeDir)
+        else if (command.rawInput[1].startsWith("~/"))
+            Path.of(homeDir, command.rawInput[1].substring(2))
+        else Path.of(command.rawInput[1])
 
-    val inputPath = (currentDir.resolve(command.rawInput[1]))
-    val proposedPath =
-        if (inputPath.isAbsolute) inputPath.normalize()
-        else currentDir.resolve(inputPath).normalize()
-    if (proposedPath.exists()) currentDir = proposedPath
-    else {
+    val proposedPath = currentDir.resolve(userPath).normalize()
+    // If the proposed path exists, change the current directory
+    // Otherwise, print an error message
+    if (proposedPath.exists()) {
+      currentDir = proposedPath
+    } else {
       println("cd: ${proposedPath}: No such file or directory")
     }
   }
