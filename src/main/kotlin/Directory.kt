@@ -1,18 +1,18 @@
 import java.io.File
 
 class Directory(val path: String) {
-  val executables: MutableList<File> = mutableListOf()
+  val executables: MutableMap<String, File> = mutableMapOf()
 
   init {
     generateExecutables()
   }
 
-  fun generateExecutables() {
+  private fun generateExecutables() {
     val dir = File(path)
     if (dir.exists() && dir.isDirectory) {
       dir.listFiles()?.forEach { file ->
         if (file.isFile && file.canExecute()) {
-          executables.add(file)
+          executables.put(file.name, file)
         }
       }
     }

@@ -27,7 +27,7 @@ object Commander {
       CommandType.ECHO -> println(command.rawInput.drop(1).joinToString(" "))
       CommandType.EXIT -> exitProcess(0)
       CommandType.TYPE -> handleTypeCommand(command, directories)
-      CommandType.UNKNOWN -> println("${command.rawInput.getOrNull(0) ?: ""}: command not found")
+      CommandType.UNKNOWN -> handleUnknownCommand(command, directories)
     }
   }
 
@@ -41,7 +41,28 @@ object Commander {
     return Command(commandType, parts)
   }
 
-  fun handleTypeCommand(command: Command, directories: List<Directory>) {
+  private fun handleUnknownCommand(command: Command, directories: List<Directory>) {
+    // If the command is unknown, try to find it in the directories
+    val executable = findExecutable(command.rawInput[0], directories)
+    when (executable) {
+      null -> println("${command.rawInput[0]}: command not found")
+      else -> executeFile(executable, command.rawInput.drop(1))
+    }
+  }
+
+  private fun executeFile(file: File, arguments: List<String>) {
+    val command = listOf(file.name) + arguments
+    val processBuilder = ProcessBuilder(command)
+    processBuilder.redirectErrorStream(true)
+    val process = processBuilder.start()
+    process.inputStream.bufferedReader().useLines { lines ->
+      for (line in lines) {
+        println(line)
+      }
+    }
+  }
+
+  private fun handleTypeCommand(command: Command, directories: List<Directory>) {
     if (command.rawInput.size < 2) {
       return
     }
@@ -57,11 +78,10 @@ object Commander {
     println("${subCommand.toString().lowercase()} is a shell builtin")
   }
 
-  fun findExecutable(command: String, directories: List<Directory>): File? {
+  private fun findExecutable(command: String, directories: List<Directory>): File? {
     for (dir in directories) {
-      val executable = dir.executables.find { it.name == command }
-      if (executable != null) {
-        return executable
+      if (dir.executables.containsKey(command)) {
+        return dir.executables[command]
       }
     }
     return null
