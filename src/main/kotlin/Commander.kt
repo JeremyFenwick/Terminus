@@ -1,6 +1,7 @@
+import java.io.File
 import kotlin.system.exitProcess
 
-enum class CommandType {
+enum class CommandType() {
   ECHO,
   EXIT,
   TYPE,
@@ -18,38 +19,51 @@ enum class CommandType {
   }
 }
 
-data class Command(val type: CommandType, val content: String, val subType: CommandType)
+data class Command(val type: CommandType, val rawInput: List<String>)
 
 object Commander {
-  fun execute(command: Command) {
+  fun execute(command: Command, directories: List<Directory>) {
     when (command.type) {
-      CommandType.ECHO -> println(command.content)
+      CommandType.ECHO -> println(command.rawInput.drop(1).joinToString(" "))
       CommandType.EXIT -> exitProcess(0)
-      CommandType.TYPE -> {
-        when (command.subType) {
-          CommandType.UNKNOWN -> println("${command.content}: not found")
-          else -> println("${command.subType.toString().lowercase()} is a shell builtin")
-        }
-      }
-
-      CommandType.UNKNOWN -> println("${command.content}: command not found")
+      CommandType.TYPE -> handleTypeCommand(command, directories)
+      CommandType.UNKNOWN -> println("${command.rawInput.getOrNull(0) ?: ""}: command not found")
     }
   }
 
   fun parse(input: String): Command {
     val parts = input.split(" ")
     if (parts.isEmpty()) {
-      return Command(CommandType.UNKNOWN, "", CommandType.UNKNOWN)
+      return Command(CommandType.UNKNOWN, parts)
     }
+    // Extract the command type and sub-command type
     val commandType = CommandType.fromInput(parts[0])
-    val subCommandType =
-        if (parts.size > 1) CommandType.fromInput(parts[1]) else CommandType.UNKNOWN
-    val content =
-        when {
-          commandType == CommandType.UNKNOWN -> parts.joinToString(" ")
-          subCommandType != CommandType.UNKNOWN -> parts.drop(2).joinToString(" ")
-          else -> parts.drop(1).joinToString(" ")
-        }
-    return Command(commandType, content, subCommandType)
+    return Command(commandType, parts)
+  }
+
+  fun handleTypeCommand(command: Command, directories: List<Directory>) {
+    if (command.rawInput.size < 2) {
+      return
+    }
+    // If the sub-command is unknown, try to find it in the directories
+    val subCommand = CommandType.fromInput(command.rawInput[1])
+    if (subCommand == CommandType.UNKNOWN) {
+      val executable = findExecutable(command.rawInput[1], directories)
+      if (executable == null) println("${command.rawInput[1]}: not found")
+      else println("${executable.name} is ${executable.absolutePath}")
+      return
+    }
+    // If the sub-command is a known command, print that it is a shell builtin
+    println("${subCommand.toString().lowercase()} is a shell builtin")
+  }
+
+  fun findExecutable(command: String, directories: List<Directory>): File? {
+    for (dir in directories) {
+      val executable = dir.executables.find { it.name == command }
+      if (executable != null) {
+        return executable
+      }
+    }
+    return null
   }
 }
