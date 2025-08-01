@@ -28,7 +28,7 @@ object Commander {
       CommandType.ECHO -> println(command.rawInput.drop(1).joinToString(" "))
       CommandType.EXIT -> exitProcess(0)
       CommandType.TYPE -> handleTypeCommand(command, directories)
-      CommandType.PWD -> println(File(".").absolutePath)
+      CommandType.PWD -> println(File(".").canonicalPath)
       CommandType.UNKNOWN -> handleUnknownCommand(command, directories)
     }
   }
