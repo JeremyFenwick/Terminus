@@ -3,14 +3,6 @@ import java.io.InputStreamReader
 class Shell(private val prompt: String = "$ ", words: List<String>) {
   private val trie = WordTrie(words)
 
-  fun setTerminalRawMode() {
-    Runtime.getRuntime().exec(arrayOf("sh", "-c", "stty raw -echo </dev/tty")).waitFor()
-  }
-
-  fun resetTerminalMode() {
-    Runtime.getRuntime().exec(arrayOf("sh", "-c", "stty sane </dev/tty")).waitFor()
-  }
-
   fun readLine(): String {
     val reader = InputStreamReader(System.`in`)
     val buffer = StringBuilder()
@@ -27,9 +19,16 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
       }
       // Case where we have multiple completions and the user just hit tab
       else if (completions.isNotEmpty() && !justHitTab) {
-        // Ring the bell
-        print("\u0007") // ASCII Bell character
-        return true //
+        val longestPrefix = trie.getLongestPrefix(buffer.toString())
+        // If the longest prefix is the same as the current buffer, we ring the bell
+        if (longestPrefix == buffer.toString()) {
+          // Ring the bell
+          print("\u0007") // ASCII Bell character
+          return true //
+        }
+        // If the longest prefix is different, we print it
+        print(longestPrefix.substring(buffer.length))
+        buffer.append(longestPrefix.substring(buffer.length))
         // Case where we have multiple completions and the user has already hit tab
       } else if (completions.isNotEmpty()) {
         print("\r\n")
@@ -77,8 +76,20 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     return buffer.toString().trim()
   }
 
+  private fun setTerminalRawMode() {
+    Runtime.getRuntime().exec(arrayOf("sh", "-c", "stty raw -echo </dev/tty")).waitFor()
+  }
+
+  private fun resetTerminalMode() {
+    Runtime.getRuntime().exec(arrayOf("sh", "-c", "stty sane </dev/tty")).waitFor()
+  }
+
+  private fun longestPrefix(prefix: String, words: List<String>): String {}
+
   class WordTrie(words: List<String>) {
     private val root: Node = Node()
+    private var lastQuery: String? = null
+    private var lastResults: List<String> = emptyList()
 
     data class Node(
         val children: MutableMap<Char, Node> = mutableMapOf(),
@@ -100,6 +111,7 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     }
 
     fun getChildren(prefix: String): List<String> {
+      if (prefix == lastQuery) return lastResults
       var currentNode = root
       for (char in prefix) {
         currentNode = currentNode.children[char] ?: return emptyList()
@@ -108,7 +120,29 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
       val words = mutableListOf<String>()
       collectWords(currentNode, prefix, words)
       words.sort() // Sort the words for consistent output
+      // Cache the results
+      lastQuery = prefix
+      lastResults = words
       return words
+    }
+
+    fun getLongestPrefix(prefix: String): String {
+      if (prefix != lastQuery) {
+        getChildren(prefix) // Update the cache
+      }
+      if (lastResults.isEmpty()) return ""
+      var index = prefix.length - 1
+      // By definition the longest common prefix is the shortest word
+      val shortestWord = lastResults.minBy { it.length }
+      while (index < shortestWord.length) {
+        for (word in lastResults) {
+          if (word[index] != shortestWord[index]) {
+            return prefix.substring(0, index)
+          }
+        }
+        index++
+      }
+      return shortestWord
     }
 
     fun collectWords(node: Node, prefix: String, words: MutableList<String>) {
