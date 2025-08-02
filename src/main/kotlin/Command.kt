@@ -26,5 +26,9 @@ enum class CommandType() {
         else -> UNKNOWN
       }
     }
+
+    fun commandList(): List<String> {
+      return listOf("echo", "exit", "type", "cd", "pwd")
+    }
   }
 }

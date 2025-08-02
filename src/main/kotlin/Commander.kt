@@ -40,6 +40,7 @@ object Commander {
   }
 
   private fun handleUnknownCommand(command: Command, directories: List<Directory>) {
+    if (command.rawInput.isEmpty()) return
     // If the command is unknown, try to find it in the directories
     val executable = findExecutable(command.rawInput[0], directories)
     when (executable) {
