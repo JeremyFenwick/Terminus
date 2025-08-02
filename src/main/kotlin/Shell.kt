@@ -4,7 +4,7 @@ import org.jline.reader.impl.DefaultParser
 import org.jline.reader.impl.completer.StringsCompleter
 import org.jline.terminal.*
 
-class Shell(prompt: String = "$ ") {
+class Shell(prompt: String = "$ ", completions: List<String> = listOf()) {
   private val lineReader: LineReader
   private val prompt: String
 
@@ -16,7 +16,7 @@ class Shell(prompt: String = "$ ") {
     lineReader =
         LineReaderBuilder.builder()
             .terminal(TerminalBuilder.builder().system(true).build())
-            .completer(StringsCompleter(CommandType.commandList()))
+            .completer(StringsCompleter(completions))
             .parser(DefaultParser().apply { escapeChars = charArrayOf() }) // We use a custom parser
             .build()
   }
