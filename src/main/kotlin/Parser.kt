@@ -7,7 +7,7 @@ object Parser {
   private val stdErrSymbols = listOf("2>", "2>>")
 
   fun parseInput(line: String): Command {
-    val input = inputReader(line)
+    val input = rawParser(line)
     return inputToCommand(input)
   }
 
@@ -32,10 +32,10 @@ object Parser {
     val appendMode = input[redirectIndex].endsWith(">>")
     val outputFile = java.io.File(input[redirectIndex + 2])
     outputFile.parentFile?.mkdirs() // Ensure parent directories exist
-    return Writer(PrintWriter(FileOutputStream(outputFile, appendMode), true), true)
+    return Writer(PrintWriter(FileOutputStream(outputFile, appendMode), true))
   }
 
-  private fun inputReader(input: String): List<String> {
+  private fun rawParser(input: String): List<String> {
     val result = mutableListOf<String>()
     val buffer = StringBuilder()
     var index = 0
@@ -118,12 +118,6 @@ object Parser {
     }
     // If the buffer is not empty add it
     flushBuffer()
-
-    // Trim the final space if it exists
-    if (result.isNotEmpty() && result.last() == " ") {
-      result.removeAt(result.size - 1)
-    }
-
     return result
   }
 }
