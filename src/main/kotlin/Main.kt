@@ -1,9 +1,6 @@
 fun main() {
   val pathFolders = System.getenv("PATH")?.split(":") ?: listOf()
-  val directories =
-      pathFolders.map { dir ->
-        AvailablePrograms(dir)
-      } // Create Directory objects for each path folder
+  val directories = AvailablePrograms(pathFolders)
   val shell = Shell("$ ")
   //  val reader = BufferedReader(InputStreamReader(System.`in`))
 
