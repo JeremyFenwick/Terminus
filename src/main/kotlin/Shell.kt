@@ -84,8 +84,6 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     Runtime.getRuntime().exec(arrayOf("sh", "-c", "stty sane </dev/tty")).waitFor()
   }
 
-  private fun longestPrefix(prefix: String, words: List<String>): String {}
-
   class WordTrie(words: List<String>) {
     private val root: Node = Node()
     private var lastQuery: String? = null
@@ -126,10 +124,8 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
       return words
     }
 
-    fun getLongestPrefix(prefix: String): String {
-      if (prefix != lastQuery) {
-        getChildren(prefix) // Update the cache
-      }
+    fun getLongestCommonChildPrefix(prefix: String): String {
+      if (prefix != lastQuery) getChildren(prefix) // Update the cache
       if (lastResults.isEmpty()) return ""
       var index = prefix.length - 1
       // By definition the longest common prefix is the shortest word
