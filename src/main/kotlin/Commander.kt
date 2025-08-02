@@ -8,9 +8,9 @@ object Commander {
 
   fun execute(command: Command, programs: AvailablePrograms) {
     when (command.type) {
-      CommandType.ECHO -> command.stdOut.println(command.rawInput.drop(2).joinToString(""))
+      CommandType.ECHO -> writeToOutput(command.rawInput.drop(2).joinToString(""), command.stdOut)
       CommandType.EXIT -> exitProcess(0)
-      CommandType.PWD -> command.stdOut.println(currentDir.toString())
+      CommandType.PWD -> writeToOutput(currentDir.toString(), command.stdOut)
       CommandType.TYPE -> handleTypeCommand(command, programs)
       CommandType.CD -> changeDir(command)
       CommandType.UNKNOWN -> handleUnknownCommand(command, programs)
@@ -35,7 +35,7 @@ object Commander {
     if (proposedPath.exists()) {
       currentDir = proposedPath
     } else {
-      command.stdOut.println("cd: ${proposedPath}: No such file or directory")
+      writeToOutput("cd: ${proposedPath}: No such file or directory", command.stdOut)
     }
   }
 
@@ -43,7 +43,7 @@ object Commander {
     if (command.rawInput.isEmpty()) return
     val program =
         programs.executables.getOrElse(command.rawInput[0]) {
-          command.stdOut.println("${command.rawInput[0]}: command not found")
+          writeToOutput("${command.rawInput[0]}: command not found", command.stdOut)
           return
         }
     executeFile(command, program, command.rawInput.drop(2).filter(String::isNotBlank))
@@ -55,15 +55,18 @@ object Commander {
     val process = processBuilder.start()
     process.inputStream.bufferedReader().use { reader ->
       for (line in reader.lines()) {
-        command.stdOut.println(line)
+        command.stdOut.writer.println(line)
       }
     }
 
     process.errorStream.bufferedReader().use { reader ->
       for (line in reader.lines()) {
-        command.errOut.println(line)
+        command.errOut.writer.println(line)
       }
     }
+
+    if (command.errOut.closeMe) command.errOut.writer.close()
+    if (command.stdOut.closeMe) command.stdOut.writer.close()
   }
 
   private fun handleTypeCommand(command: Command, programs: AvailablePrograms) {
@@ -75,13 +78,18 @@ object Commander {
     if (subCommand == CommandType.UNKNOWN) {
       val executable =
           programs.executables.getOrElse(command.rawInput[2]) {
-            command.stdOut.println("${command.rawInput[2]}: not found")
+            writeToOutput("${command.rawInput[2]}: not found", command.stdOut)
             return
           }
-      command.stdOut.println("${executable.name} is ${executable.absolutePath}")
+      writeToOutput("${executable.name} is ${executable.absolutePath}", command.stdOut)
       return
     }
     // If the sub-command is a known command, print that it is a shell builtin
-    command.stdOut.println("${subCommand.toString().lowercase()} is a shell builtin")
+    writeToOutput("${subCommand.toString().lowercase()} is a shell builtin", command.stdOut)
+  }
+
+  private fun writeToOutput(text: String, writer: Writer) {
+    writer.writer.println(text)
+    if (writer.closeMe) writer.writer.close()
   }
 }

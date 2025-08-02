@@ -13,7 +13,7 @@ object Parser {
 
   fun inputToCommand(input: List<String>): Command {
     if (input.isEmpty()) {
-      return Command(CommandType.UNKNOWN, input, defaultWriter, defaultWriter)
+      return Command(CommandType.UNKNOWN, input, Writer(defaultWriter), Writer(defaultWriter))
     }
     // Output the command to either standard output or a file
     val redirectIndex = input.indexOfFirst { it in stdOutSymbols || it in stdErrSymbols }
@@ -25,14 +25,14 @@ object Parser {
     return Command(commandType, commandList, stdOut, stdErr)
   }
 
-  private fun getRedirect(input: List<String>, sep: List<String>): PrintWriter {
+  private fun getRedirect(input: List<String>, sep: List<String>): Writer {
     val redirectIndex = input.indexOfFirst { it in sep }
     if (redirectIndex == -1 || redirectIndex + 2 > input.size)
-        return defaultWriter // No redirection found, return standard output
+        return Writer(defaultWriter) // No redirection found, return standard output
     val appendMode = input[redirectIndex].endsWith(">>")
     val outputFile = java.io.File(input[redirectIndex + 2])
     outputFile.parentFile?.mkdirs() // Ensure parent directories exist
-    return PrintWriter(FileOutputStream(outputFile, appendMode), true)
+    return Writer(PrintWriter(FileOutputStream(outputFile, appendMode), true), true)
   }
 
   private fun inputReader(input: String): List<String> {

@@ -3,9 +3,11 @@ import java.io.PrintWriter
 data class Command(
     val type: CommandType,
     val rawInput: List<String>,
-    val stdOut: PrintWriter,
-    val errOut: PrintWriter
+    val stdOut: Writer,
+    val errOut: Writer
 )
+
+data class Writer(val writer: PrintWriter, val closeMe: Boolean = false)
 
 enum class CommandType() {
   ECHO,
