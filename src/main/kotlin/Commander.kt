@@ -6,14 +6,14 @@ import kotlin.system.exitProcess
 object Commander {
   var currentDir: Path = File(".").toPath().toAbsolutePath().normalize()
 
-  fun execute(command: Command, directories: List<Directory> = listOf()) {
+  fun execute(command: Command, programs: AvailablePrograms) {
     when (command.type) {
       CommandType.ECHO -> command.stdOut.println(command.rawInput.drop(2).joinToString(""))
       CommandType.EXIT -> exitProcess(0)
       CommandType.PWD -> command.stdOut.println(currentDir.toString())
-      CommandType.TYPE -> handleTypeCommand(command, directories)
+      CommandType.TYPE -> handleTypeCommand(command, programs)
       CommandType.CD -> changeDir(command)
-      CommandType.UNKNOWN -> handleUnknownCommand(command, directories)
+      CommandType.UNKNOWN -> handleUnknownCommand(command, programs)
     }
   }
 
@@ -39,14 +39,14 @@ object Commander {
     }
   }
 
-  private fun handleUnknownCommand(command: Command, directories: List<Directory>) {
+  private fun handleUnknownCommand(command: Command, programs: AvailablePrograms) {
     if (command.rawInput.isEmpty()) return
-    // If the command is unknown, try to find it in the directories
-    val executable = findExecutable(command.rawInput[0], directories)
-    when (executable) {
-      null -> command.stdOut.println("${command.rawInput[0]}: command not found")
-      else -> executeFile(command, executable, command.rawInput.drop(2).filter(String::isNotBlank))
-    }
+    val program =
+        programs.executables.getOrElse(command.rawInput[0]) {
+          command.stdOut.println("${command.rawInput[0]}: command not found")
+          return
+        }
+    executeFile(command, program, command.rawInput.drop(2).filter(String::isNotBlank))
   }
 
   private fun executeFile(command: Command, file: File, arguments: List<String>) {
@@ -66,28 +66,22 @@ object Commander {
     }
   }
 
-  private fun handleTypeCommand(command: Command, directories: List<Directory>) {
+  private fun handleTypeCommand(command: Command, programs: AvailablePrograms) {
     if (command.rawInput.size < 3) {
       return
     }
     // If the sub-command is unknown, try to find it in the directories
     val subCommand = CommandType.fromInput(command.rawInput[2])
     if (subCommand == CommandType.UNKNOWN) {
-      val executable = findExecutable(command.rawInput[2], directories)
-      if (executable == null) command.stdOut.println("${command.rawInput[2]}: not found")
-      else command.stdOut.println("${executable.name} is ${executable.absolutePath}")
+      val executable =
+          programs.executables.getOrElse(command.rawInput[2]) {
+            command.stdOut.println("${command.rawInput[2]}: not found")
+            return
+          }
+      command.stdOut.println("${executable.name} is ${executable.absolutePath}")
       return
     }
     // If the sub-command is a known command, print that it is a shell builtin
     command.stdOut.println("${subCommand.toString().lowercase()} is a shell builtin")
-  }
-
-  private fun findExecutable(command: String, directories: List<Directory>): File? {
-    for (dir in directories) {
-      if (dir.executables.containsKey(command)) {
-        return dir.executables[command]
-      }
-    }
-    return null
   }
 }
