@@ -19,7 +19,7 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
       }
       // Case where we have multiple completions and the user just hit tab
       else if (completions.isNotEmpty() && !justHitTab) {
-        val longestPrefix = trie.getLongestPrefix(buffer.toString())
+        val longestPrefix = trie.getLongestCommonChildPrefix(buffer.toString())
         // If the longest prefix is the same as the current buffer, we ring the bell
         if (longestPrefix == buffer.toString()) {
           // Ring the bell
