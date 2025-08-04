@@ -4,8 +4,8 @@ fun main() {
   val shell = Shell("$ ", CommandType.commandList() + programs.executables.keys.toList())
 
   while (true) {
-    val line = shell.readLine() // Read a line from the shell
-    val command = Parser.parseInput(line)
-    Commander.execute(command, programs) // Execute the command
+    val rawLine = shell.readLine()
+    val command = CommandGenerator.parseInput(rawLine)
+    Commander.execute(command, programs)
   }
 }

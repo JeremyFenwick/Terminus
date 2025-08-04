@@ -125,15 +125,16 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     }
 
     fun getLongestCommonChildPrefix(prefix: String): String {
-      if (prefix != lastQuery) getChildren(prefix) // Update the cache
-      if (lastResults.isEmpty()) return ""
+      // Update the cache if required
+      if (prefix != lastQuery) getChildren(prefix)
+      if (lastResults.isEmpty()) return prefix
       var index = prefix.length - 1
-      // By definition the longest common prefix is the shortest word
+      // By definition the longest common prefix is the shortest child
       val shortestWord = lastResults.minBy { it.length }
       while (index < shortestWord.length) {
         for (word in lastResults) {
           if (word[index] != shortestWord[index]) {
-            return prefix.substring(0, index)
+            return shortestWord.substring(0, index)
           }
         }
         index++

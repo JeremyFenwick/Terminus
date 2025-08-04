@@ -1,8 +1,4 @@
-import java.io.FileOutputStream
-import java.io.PrintWriter
-
-object Parser {
-  private val defaultWriter = PrintWriter(System.out, true)
+object CommandGenerator {
   private val stdOutSymbols = listOf(">", "1>", ">>", "1>>")
   private val stdErrSymbols = listOf("2>", "2>>")
 
@@ -13,8 +9,10 @@ object Parser {
 
   fun inputToCommand(input: List<String>): Command {
     if (input.isEmpty()) {
-      return Command(CommandType.UNKNOWN, input, Writer(defaultWriter), Writer(defaultWriter))
+      return Command(CommandType.NOTBUILDIN, input)
     }
+    // Check if this is a pipe command
+    if (input.contains("|")) return Command(CommandType.PIPE, input)
     // Output the command to either standard output or a file
     val redirectIndex = input.indexOfFirst { it in stdOutSymbols || it in stdErrSymbols }
     val commandList = if (redirectIndex != -1) input.subList(0, redirectIndex) else input
@@ -25,14 +23,39 @@ object Parser {
     return Command(commandType, commandList, stdOut, stdErr)
   }
 
-  private fun getRedirect(input: List<String>, sep: List<String>): Writer {
+  fun commandSplitter(input: List<String>): List<Command> {
+    val commands = mutableListOf<Command>()
+    val currentCommand = mutableListOf<String>()
+    for (token in input) {
+      if (token == " " && currentCommand.isEmpty()) {
+        // If we hit a pipe and the current command is empty, we skip it
+        continue
+      }
+      if (token == "|") {
+        // If we hit a pipe, we finalize the current command
+        if (currentCommand.isNotEmpty()) {
+          commands.add(inputToCommand(currentCommand.toList()))
+          currentCommand.clear()
+        }
+      } else {
+        // Otherwise, we add the token to the current command
+        currentCommand.add(token)
+      }
+    }
+    // Add the last command if it exists
+    if (currentCommand.isNotEmpty()) {
+      commands.add(inputToCommand(currentCommand))
+    }
+    return commands
+  }
+
+  private fun getRedirect(input: List<String>, sep: List<String>): Output? {
     val redirectIndex = input.indexOfFirst { it in sep }
-    if (redirectIndex == -1 || redirectIndex + 2 > input.size)
-        return Writer(defaultWriter) // No redirection found, return standard output
+    // No redirection found, return standard output
+    if (redirectIndex == -1 || redirectIndex + 2 > input.size) return null
     val appendMode = input[redirectIndex].endsWith(">>")
     val outputFile = java.io.File(input[redirectIndex + 2])
-    outputFile.parentFile?.mkdirs() // Ensure parent directories exist
-    return Writer(PrintWriter(FileOutputStream(outputFile, appendMode), true))
+    return Output(outputFile, appendMode)
   }
 
   private fun rawParser(input: String): List<String> {

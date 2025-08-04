@@ -1,13 +1,13 @@
-import java.io.PrintWriter
+import java.io.File
 
 data class Command(
     val type: CommandType,
     val rawInput: List<String>,
-    val stdOut: Writer,
-    val errOut: Writer
+    val stdOut: Output? = null,
+    val stdErr: Output? = null
 )
 
-data class Writer(val writer: PrintWriter, val closeMe: Boolean = false)
+data class Output(val outputFile: File, val appendMode: Boolean = false)
 
 enum class CommandType() {
   ECHO,
@@ -15,7 +15,8 @@ enum class CommandType() {
   TYPE,
   PWD,
   CD,
-  UNKNOWN;
+  PIPE,
+  NOTBUILDIN;
 
   companion object {
     fun fromInput(input: String): CommandType {
@@ -25,7 +26,7 @@ enum class CommandType() {
         "type" -> TYPE
         "cd" -> CD
         "pwd" -> PWD
-        else -> UNKNOWN
+        else -> NOTBUILDIN
       }
     }
 
