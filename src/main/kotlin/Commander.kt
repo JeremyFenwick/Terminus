@@ -31,20 +31,24 @@ object Commander {
       commandList: List<Command>,
       programs: AvailablePrograms
   ): ExecutionStream {
-    if (commandList.isEmpty()) throw IllegalArgumentException("No commands provided")
+    if (commandList.isEmpty())
+        return ExecutionStream(
+            ByteArrayInputStream("".toByteArray()), ByteArrayInputStream("".toByteArray()))
 
     // Create a ProcessBuilder for each command
     val processBuilders =
         commandList.map { command ->
           val program =
               programs.executables.getOrElse(command.rawInput[0]) {
-                throw IllegalArgumentException("${command.rawInput[0]}: command not found")
+                return ExecutionStream(
+                    ByteArrayInputStream("".toByteArray()),
+                    ByteArrayInputStream("${command.rawInput[0]}: command not found".toByteArray()))
               }
           val args = command.rawInput.drop(2).filter { it.isNotBlank() }
           ProcessBuilder(listOf(program.name) + args)
         }
 
-    // Use Java's built-in pipeline support (Java 9+)
+    // Use Java's built-in pipeline support
     val processes = ProcessBuilder.startPipeline(processBuilders)
 
     // Return streams from the last process
