@@ -2,7 +2,7 @@ import java.io.File
 
 data class Command(
     val type: CommandType,
-    val input: List<String>,
+    var input: List<String>,
     val outputFile: Output? = null,
     val errFile: Output? = null
 )
@@ -16,6 +16,7 @@ enum class CommandType() {
   PWD,
   CD,
   PIPE,
+  LS,
   HISTORY,
   NOTBUILTIN;
 
@@ -28,6 +29,7 @@ enum class CommandType() {
         "cd" -> CD
         "pwd" -> PWD
         "history" -> HISTORY
+        "ls" -> LS
         else -> NOTBUILTIN
       }
     }

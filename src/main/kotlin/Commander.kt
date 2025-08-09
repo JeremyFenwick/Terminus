@@ -39,7 +39,8 @@ class Commander(private val shell: Shell) {
         pipeCommands(commandList, programs)
         closeChannels(stdOutput, errOutput)
       }
-      CommandType.NOTBUILTIN -> nonBuiltinCommand(command, programs, stdOutput, errOutput, input)
+      CommandType.LS -> lsCommand(command, programs, stdOutput, errOutput)
+      CommandType.NOTBUILTIN -> nonBuiltInCommand(command, programs, stdOutput, errOutput, input)
       CommandType.HISTORY -> historyCommand(stdOutput, errOutput, command)
     }
   }
@@ -79,25 +80,50 @@ class Commander(private val shell: Shell) {
     exitProcess(0)
   }
 
+  private suspend fun lsCommand(
+      command: Command,
+      programs: AvailablePrograms,
+      stdOutput: SendChannel<String>,
+      errOutput: SendChannel<String>
+  ) {
+    // If the user has not specified a directory, we use the current directory
+    if (command.input.size < 3) {
+      command.input = command.input + listOf(" ", currentDir.toString())
+    }
+    nonBuiltInCommand(command, programs, stdOutput, errOutput, null)
+  }
+
   private suspend fun historyCommand(
       stdOutput: SendChannel<String>,
       errOutput: SendChannel<String>,
       command: Command
   ) {
-    if (command.input.size >= 2 && command.input[2] == "-r") {
-      fileToHistory(command)
-      closeChannels(stdOutput, errOutput)
-      return
+    when (command.input.getOrNull(2)) {
+      "-r" -> fileToHistory(command)
+      "-w" -> historyToFile(command)
+      else -> {
+        val history = shell.getHistory
+        val limit = command.input.getOrNull(2)?.toIntOrNull() ?: history.size
+        val startIndex = (history.size - limit).coerceAtLeast(0)
+
+        for (i in startIndex until history.size) {
+          stdOutput.send("  ${i + 1}  ${history[i]}\n") // Output should be 1 indexed
+        }
+      }
     }
 
-    // If the user has requested a specific number of history entries, we limit the output
-    val history = shell.getHistory
-    val limit = command.input.getOrNull(2)?.toIntOrNull() ?: history.size
-    val startIndex = (history.size - limit).coerceAtLeast(0)
-    for (i in startIndex until history.size) {
-      stdOutput.send("  ${i + 1}  ${history[i]}\n") // Output should be 1 indexed
-    }
     closeChannels(stdOutput, errOutput)
+  }
+
+  private fun historyToFile(command: Command) {
+    if (command.input.size < 4) return
+    val historyFile = File(command.input[4])
+    // Create the parent directories if they do not exist
+    historyFile.parentFile?.mkdirs()
+    // Write the history to the file
+    historyFile.printWriter().use { writer ->
+      shell.getHistory.forEach { entry -> writer.println(entry) }
+    }
   }
 
   private fun fileToHistory(command: Command) {
@@ -151,7 +177,7 @@ class Commander(private val shell: Shell) {
   private suspend fun pwdCommand(stdOutput: SendChannel<String>, errOutput: SendChannel<String>) =
       sendStandardMessage("${currentDir}\n", stdOutput, errOutput)
 
-  suspend fun nonBuiltinCommand(
+  suspend fun nonBuiltInCommand(
       command: Command,
       programs: AvailablePrograms,
       stdOutput: SendChannel<String>,
