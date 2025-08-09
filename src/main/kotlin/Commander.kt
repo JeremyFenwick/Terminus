@@ -37,7 +37,8 @@ class Commander(private val shell: Shell) {
         // If the command is a pipe, we need to split it into multiple commands
         val commandList = CommandGenerator.commandSplitter(command.input)
         pipeCommands(commandList, programs)
-        closeChannels(stdOutput, errOutput)
+        closeChannels(
+            stdOutput, errOutput) // We actually don't use these channels at all when piping
       }
       CommandType.LS -> lsCommand(command, programs, stdOutput, errOutput)
       CommandType.NOTBUILTIN -> nonBuiltInCommand(command, programs, stdOutput, errOutput, input)
