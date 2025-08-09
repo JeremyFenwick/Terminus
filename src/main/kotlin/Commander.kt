@@ -1,64 +1,95 @@
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
-import java.io.InputStream
 import java.nio.file.Path
 import kotlin.io.path.exists
 import kotlin.system.exitProcess
+import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
+
+// tail -f /tmp/file-43 | head -n 5
+// tail /tmp/file-43 | head -n 5
 
 object Commander {
   var currentDir: Path = File(".").toPath().toAbsolutePath().normalize()
 
-  data class ExecutionStream(val stdOut: InputStream?, val errOut: InputStream?)
+  suspend fun run(command: Command, programs: AvailablePrograms) {
+    val outChannel = Channel<String>(Channel.BUFFERED)
+    val errChannel = Channel<String>(Channel.BUFFERED)
+    execute(command, programs, outChannel, errChannel)
+    write(outChannel, errChannel, command)
+  }
 
-  fun execute(command: Command, programs: AvailablePrograms) {
+  private suspend fun execute(
+      command: Command,
+      programs: AvailablePrograms,
+      stdOutput: SendChannel<String>,
+      errOutput: SendChannel<String>,
+      input: ReceiveChannel<String>? = null
+  ) {
     when (command.type) {
-      CommandType.ECHO -> write(command, echoCommand(command))
-      CommandType.EXIT -> exitProcess(0)
-      CommandType.PWD -> write(command, pwdCommand())
-      CommandType.TYPE -> write(command, typeCommand(command, programs))
-      CommandType.CD -> write(command, changeDirCommand(command))
+      CommandType.ECHO -> echoCommand(command, stdOutput, errOutput)
+      CommandType.EXIT -> exitCommand()
+      CommandType.PWD -> pwdCommand(stdOutput, errOutput)
+      CommandType.TYPE -> typeCommand(command, programs, stdOutput, errOutput)
+      CommandType.CD -> changeDirCommand(stdOutput, errOutput, command)
       CommandType.PIPE -> {
         // If the command is a pipe, we need to split it into multiple commands
         val commandList = CommandGenerator.commandSplitter(command.rawInput)
-        write(command, pipeCommands(commandList, programs))
+        pipeCommands(commandList, programs)
+        closeChannels(stdOutput, errOutput)
       }
-      CommandType.NOTBUILDIN -> write(command, nonBuiltinCommand(command, programs))
+      CommandType.NOTBUILTIN -> nonBuiltinCommand(command, programs, stdOutput, errOutput, input)
     }
   }
 
-  private fun pipeCommands(
-      commandList: List<Command>,
-      programs: AvailablePrograms
-  ): ExecutionStream {
-    if (commandList.isEmpty())
-        return ExecutionStream(
-            ByteArrayInputStream("".toByteArray()), ByteArrayInputStream("".toByteArray()))
-
-    // Create a ProcessBuilder for each command
-    val processBuilders =
-        commandList.map { command ->
+  private suspend fun pipeCommands(commands: List<Command>, programs: AvailablePrograms) =
+      coroutineScope {
+        val stdOutputs = List(commands.size) { Channel<String>(Channel.BUFFERED) }
+        val errOutputs = List(commands.size) { Channel<String>(Channel.BUFFERED) }
+        val jobs = mutableListOf<Job>()
+        // Launch a coroutine for each command in the pipeline
+        for ((index, command) in commands.withIndex()) {
+          // For all but the first command, we need to connect the output of the previous command
+          // to the input of the current command
+          val input = if (index == 0) null else stdOutputs[index - 1]
+          // Now launch the program
           val program =
-              programs.executables.getOrElse(command.rawInput[0]) {
-                return ExecutionStream(
-                    ByteArrayInputStream("".toByteArray()),
-                    ByteArrayInputStream("${command.rawInput[0]}: command not found".toByteArray()))
+              launch(Dispatchers.IO) {
+                execute(command, programs, stdOutputs[index], errOutputs[index], input)
               }
-          val args = command.rawInput.drop(2).filter { it.isNotBlank() }
-          ProcessBuilder(listOf(program.name) + args)
+          // If this is the last command, we print the output to the system out
+          if (index == commands.size - 1) {
+            launch(Dispatchers.IO) {
+              for (line in stdOutputs[index]) {
+                print(line)
+                if (!line.endsWith('\n')) print('\n') // Ensure we end with a newline
+              }
+              stdOutputs[index].close()
+            }
+          }
+          jobs.add(program)
         }
+        // Wait for all jobs to finish
+        jobs.forEach { it.join() }
+      }
 
-    // Use Java's built-in pipeline support
-    val processes = ProcessBuilder.startPipeline(processBuilders)
-
-    // Return streams from the last process
-    val lastProcess = processes.last()
-    return ExecutionStream(lastProcess.inputStream, lastProcess.errorStream)
+  private fun exitCommand() {
+    exitProcess(0)
   }
 
-  private fun changeDirCommand(command: Command): ExecutionStream {
-    if (command.rawInput.size < 3) return ExecutionStream(null, null)
-    var inputStream: InputStream? = null
+  private suspend fun changeDirCommand(
+      stdOutput: SendChannel<String>,
+      errOutput: SendChannel<String>,
+      command: Command
+  ) {
+    if (command.rawInput.size < 3) {
+      closeChannels(stdOutput, errOutput)
+      return
+    }
     // If the user input starts with a tilde (~), replace it with the user's home directory
     val homeDir = System.getenv("HOME") ?: "/"
     // Generate the new path the user has requested
@@ -74,86 +105,159 @@ object Commander {
     // Otherwise, print an error message
     if (proposedPath.exists()) {
       currentDir = proposedPath
-      return ExecutionStream(null, null)
+      closeChannels(stdOutput, errOutput)
+      return
     }
     val message = "cd: ${proposedPath}: No such file or directory\n"
-    inputStream = ByteArrayInputStream(message.toByteArray())
-    return ExecutionStream(inputStream, null)
+    sendStandardMessage(message, stdOutput, errOutput)
   }
 
-  private fun echoCommand(command: Command): ExecutionStream {
-    val message = command.rawInput.drop(2).joinToString("") + "\n"
-    val inputStream = ByteArrayInputStream(message.toByteArray())
-    return ExecutionStream(inputStream, ByteArrayInputStream("".toByteArray()))
+  private suspend fun echoCommand(
+      command: Command,
+      stdOut: SendChannel<String>,
+      errOut: SendChannel<String>
+  ) {
+    val message = command.rawInput.drop(2).joinToString("").trim() + "\n"
+    sendStandardMessage(message, stdOut, errOut)
   }
 
-  private fun pwdCommand(): ExecutionStream {
-    val message = "${currentDir}\n"
-    val inputStream = ByteArrayInputStream(message.toByteArray())
-    return ExecutionStream(inputStream, ByteArrayInputStream("".toByteArray()))
-  }
+  private suspend fun pwdCommand(stdOutput: SendChannel<String>, errOutput: SendChannel<String>) =
+      sendStandardMessage("${currentDir}\n", stdOutput, errOutput)
 
-  private fun nonBuiltinCommand(command: Command, programs: AvailablePrograms): ExecutionStream {
-    if (command.rawInput.isEmpty())
-        return ExecutionStream(
-            ByteArrayInputStream("".toByteArray()), ByteArrayInputStream("".toByteArray()))
+  suspend fun nonBuiltinCommand(
+      command: Command,
+      programs: AvailablePrograms,
+      stdOutput: SendChannel<String>,
+      errOutput: SendChannel<String>,
+      input: ReceiveChannel<String>?
+  ) {
+    if (command.rawInput.isEmpty()) {
+      closeChannels(stdOutput, errOutput)
+      return
+    }
+
     val program =
         programs.executables.getOrElse(command.rawInput[0]) {
-          val inputStream =
-              ByteArrayInputStream("${command.rawInput[0]}: command not found\n".toByteArray())
-          return ExecutionStream(inputStream, ByteArrayInputStream("".toByteArray()))
+          sendStandardMessage("${command.rawInput[0]}: command not found\n", stdOutput, errOutput)
+          return
         }
-    return executeProgram(command, program)
+
+    executeProgram(command, program, stdOutput, errOutput, input)
   }
 
-  private fun executeProgram(command: Command, program: File): ExecutionStream {
+  private suspend fun executeProgram(
+      command: Command,
+      program: File,
+      stdOutput: SendChannel<String>,
+      errOutput: SendChannel<String>,
+      input: ReceiveChannel<String>? = null
+  ) = coroutineScope {
     val args = command.rawInput.drop(2).filter() { it.isNotBlank() } // Filter out empty arguments
-    val process =
-        ProcessBuilder(listOf(program.name) + args)
-            .redirectInput(ProcessBuilder.Redirect.PIPE) // optional, no stdin
-            .start()
-
-    return ExecutionStream(process.inputStream, process.errorStream)
+    val process = ProcessBuilder(listOf("stdbuf", "-o0", program.name) + args).start()
+    // Begin writing to the process's input stream
+    input?.let { lines ->
+      launch(Dispatchers.IO) {
+        process.outputStream.use { stream ->
+          for (chunk in lines) {
+            // Split the chunk into actual lines and send each separately
+            // We have to do this because functions such as head
+            val actualLines = chunk.split('\n').filter { it.isNotEmpty() }
+            for (actualLine in actualLines) {
+              stream.write((actualLine).toByteArray() + "\n".toByteArray())
+              stream.flush() // Required to ensure the data is sent immediately
+            }
+          }
+        }
+      }
+    } ?: process.outputStream.close()
+    // Begin writing to the std output channel
+    launch(Dispatchers.IO) {
+      process.inputStream.bufferedReader().useLines { lines ->
+        try {
+          for (line in lines) {
+            stdOutput.send(line)
+          }
+        } finally {
+          stdOutput.close()
+        }
+      }
+    }
+    // Begin writing to the error output channel
+    launch(Dispatchers.IO) {
+      process.errorStream.bufferedReader().useLines { lines ->
+        try {
+          for (line in lines) {
+            errOutput.send(line)
+          }
+        } finally {
+          errOutput.close()
+        }
+      }
+    }
   }
 
-  private fun typeCommand(command: Command, programs: AvailablePrograms): ExecutionStream {
-    if (command.rawInput.size < 3)
-        return ExecutionStream(
-            ByteArrayInputStream("".toByteArray()), ByteArrayInputStream("".toByteArray()))
-
+  private suspend fun typeCommand(
+      command: Command,
+      programs: AvailablePrograms,
+      stdOutput: SendChannel<String>,
+      errOutput: SendChannel<String>
+  ) {
+    if (command.rawInput.size < 3) {
+      closeChannels(stdOutput, errOutput)
+      return
+    }
     val sub = command.rawInput[2]
-
     val message =
         when (val subCommand = CommandType.fromInput(sub)) {
-          CommandType.NOTBUILDIN -> {
+          CommandType.NOTBUILTIN -> {
             programs.executables[sub]?.let { "$sub is ${it.absolutePath}\n" } ?: "$sub: not found\n"
           }
           else -> "${subCommand.toString().lowercase()} is a shell builtin\n"
         }
-
-    val inputStream = ByteArrayInputStream(message.toByteArray())
-    return ExecutionStream(inputStream, ByteArrayInputStream("".toByteArray()))
+    sendStandardMessage(message, stdOutput, errOutput)
   }
 
-  private fun write(command: Command, execution: ExecutionStream) {
+  private suspend fun write(
+      stdOutput: ReceiveChannel<String>,
+      errOutput: ReceiveChannel<String>,
+      command: Command
+  ) = coroutineScope {
     // Function to write the output stream to the specified output file or stdout
-    fun writeToOutput(inputStream: InputStream, output: Output?) {
+    suspend fun writeToOutput(channel: ReceiveChannel<String>, output: Output?) = coroutineScope {
       // The default output is just the system out
       if (output == null) {
-        inputStream.copyTo(System.out)
-        return
-      }
-      output.outputFile.parentFile?.mkdirs()
-      FileOutputStream(output.outputFile, output.appendMode).use { fileOutputStream ->
-        inputStream.copyTo(fileOutputStream)
+        for (line in channel) {
+          print(line)
+          if (!line.endsWith('\n')) print('\n') // Ensure we end with a newline
+        }
+      } else {
+        output.outputFile.parentFile?.mkdirs()
+        FileOutputStream(output.outputFile, output.appendMode).use { fileOutputStream ->
+          for (line in channel) {
+            fileOutputStream.write(line.toByteArray())
+            if (!line.endsWith('\n'))
+                fileOutputStream.write('\n'.code) // Ensure we end with a newline
+          }
+        }
       }
     }
 
-    if (execution.stdOut != null) {
-      writeToOutput(execution.stdOut, command.stdOut)
-    }
-    if (execution.errOut != null) {
-      writeToOutput(execution.errOut, command.stdErr)
-    }
+    launch { writeToOutput(stdOutput, command.outputFile) }
+    launch { writeToOutput(errOutput, command.errFile) }
+  }
+
+  private fun closeChannels(stdOutput: SendChannel<String>, errOutput: SendChannel<String>) {
+    stdOutput.close()
+    errOutput.close()
+  }
+
+  private suspend fun sendStandardMessage(
+      message: String,
+      stdOutput: SendChannel<String>,
+      errOutput: SendChannel<String>
+  ) {
+    stdOutput.send(message)
+    stdOutput.close()
+    errOutput.close()
   }
 }

@@ -3,8 +3,8 @@ import java.io.File
 data class Command(
     val type: CommandType,
     val rawInput: List<String>,
-    val stdOut: Output? = null,
-    val stdErr: Output? = null
+    val outputFile: Output? = null,
+    val errFile: Output? = null
 )
 
 data class Output(val outputFile: File, val appendMode: Boolean = false)
@@ -16,7 +16,7 @@ enum class CommandType() {
   PWD,
   CD,
   PIPE,
-  NOTBUILDIN;
+  NOTBUILTIN;
 
   companion object {
     fun fromInput(input: String): CommandType {
@@ -26,7 +26,7 @@ enum class CommandType() {
         "type" -> TYPE
         "cd" -> CD
         "pwd" -> PWD
-        else -> NOTBUILDIN
+        else -> NOTBUILTIN
       }
     }
 

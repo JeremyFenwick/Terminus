@@ -1,4 +1,6 @@
-fun main() {
+import kotlinx.coroutines.runBlocking
+
+fun main() = runBlocking {
   val pathFolders = System.getenv("PATH")?.split(":") ?: listOf()
   val programs = AvailablePrograms(pathFolders)
   val shell = Shell("$ ", CommandType.commandList() + programs.executables.keys.toList())
@@ -6,6 +8,6 @@ fun main() {
   while (true) {
     val rawLine = shell.readLine()
     val command = CommandGenerator.parseInput(rawLine)
-    Commander.execute(command, programs)
+    Commander.run(command, programs)
   }
 }

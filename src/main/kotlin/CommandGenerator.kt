@@ -9,7 +9,7 @@ object CommandGenerator {
 
   fun inputToCommand(input: List<String>): Command {
     if (input.isEmpty()) {
-      return Command(CommandType.NOTBUILDIN, input)
+      return Command(CommandType.NOTBUILTIN, input)
     }
     // Check if this is a pipe command
     if (input.contains("|")) return Command(CommandType.PIPE, input)
