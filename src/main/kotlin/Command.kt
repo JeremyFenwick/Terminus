@@ -16,6 +16,7 @@ enum class CommandType() {
   PWD,
   CD,
   PIPE,
+  HISTORY,
   NOTBUILTIN;
 
   companion object {
@@ -26,12 +27,13 @@ enum class CommandType() {
         "type" -> TYPE
         "cd" -> CD
         "pwd" -> PWD
+        "history" -> HISTORY
         else -> NOTBUILTIN
       }
     }
 
     fun commandList(): List<String> {
-      return listOf("echo", "exit", "type", "cd", "pwd")
+      return listOf("echo", "exit", "type", "cd", "pwd", "history")
     }
   }
 }

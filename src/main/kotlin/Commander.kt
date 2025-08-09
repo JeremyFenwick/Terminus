@@ -43,6 +43,7 @@ object Commander {
         closeChannels(stdOutput, errOutput)
       }
       CommandType.NOTBUILTIN -> nonBuiltinCommand(command, programs, stdOutput, errOutput, input)
+      CommandType.HISTORY -> throw NotImplementedError("History command is not implemented yet")
     }
   }
 
