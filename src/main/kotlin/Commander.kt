@@ -122,7 +122,8 @@ class Commander(private val shell: Shell) {
     val historyFile = File(file)
     historyFile.parentFile?.mkdirs()
 
-    // We need to append
+    // We need to append the history to the file, but we need to avoid appending the last
+    // history -a command that was just executed, so we find the last occurrence of it
     val historyToAppend =
         shell.getHistory.let { fullHistory ->
           val lastAppend = fullHistory.dropLast(1).indexOfLast { it.startsWith("history -a") }
