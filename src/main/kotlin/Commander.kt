@@ -77,6 +77,8 @@ class Commander(private val shell: Shell) {
       }
 
   private fun exitCommand() {
+    val histFile = System.getenv("HISTFILE")
+    if (histFile != null) historyToFile(histFile)
     exitProcess(0)
   }
 
@@ -99,9 +101,9 @@ class Commander(private val shell: Shell) {
       command: Command
   ) {
     when (command.input.getOrNull(2)) {
-      "-r" -> fileToHistory(command)
-      "-w" -> historyToFile(command)
-      "-a" -> appendHistoryToFile(command)
+      "-r" -> if (command.input.size >= 4) fileToHistory(command.input[4])
+      "-w" -> if (command.input.size >= 4) historyToFile(command.input[4])
+      "-a" -> if (command.input.size >= 4) appendHistoryToFile(command.input[4])
       else -> {
         val history = shell.getHistory
         val limit = command.input.getOrNull(2)?.toIntOrNull() ?: history.size
@@ -116,9 +118,8 @@ class Commander(private val shell: Shell) {
     closeChannels(stdOutput, errOutput)
   }
 
-  private fun appendHistoryToFile(command: Command) {
-    if (command.input.size < 4) return
-    val historyFile = File(command.input[4])
+  private fun appendHistoryToFile(file: String) {
+    val historyFile = File(file)
     historyFile.parentFile?.mkdirs()
 
     // We need to append
@@ -132,9 +133,8 @@ class Commander(private val shell: Shell) {
     historyFile.appendText(historyToAppend.joinToString("\n") + "\n")
   }
 
-  private fun historyToFile(command: Command) {
-    if (command.input.size < 4) return
-    val historyFile = File(command.input[4])
+  private fun historyToFile(file: String) {
+    val historyFile = File(file)
     // Create the parent directories if they do not exist
     historyFile.parentFile?.mkdirs()
     // Write the history to the file
@@ -143,9 +143,8 @@ class Commander(private val shell: Shell) {
     }
   }
 
-  private fun fileToHistory(command: Command) {
-    if (command.input.size < 4) return
-    val historyFile = File(command.input[4])
+  private fun fileToHistory(file: String) {
+    val historyFile = File(file)
     if (!historyFile.exists()) return
     val lines = historyFile.readLines().filter { it.isNotBlank() }
     shell.appendToHistory(lines)

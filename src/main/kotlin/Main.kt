@@ -11,8 +11,7 @@ fun main() = runBlocking {
   val commander =
       Commander(shell).also {
         val histFile = System.getenv("HISTFILE")
-        val command = CommandGenerator.parseInput("history -r $histFile")
-        if (histFile != null) it.run(command, programs)
+        if (histFile != null) it.run(CommandGenerator.parseInput("history -r $histFile"), programs)
       }
 
   while (true) {
