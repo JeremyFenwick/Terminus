@@ -231,6 +231,7 @@ class Commander(private val shell: Shell) {
           for (chunk in lines) {
             // Split the chunk into actual lines and send each separately
             // We have to do this because functions such as head
+            // are very particular about the format of their input
             val actualLines = chunk.split('\n').filter { it.isNotEmpty() }
             for (actualLine in actualLines) {
               stream.write((actualLine).toByteArray() + "\n".toByteArray())
