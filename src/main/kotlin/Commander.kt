@@ -89,7 +89,7 @@ class Commander(private val shell: Shell) {
       errOutput: SendChannel<String>
   ) {
     // If the user has not specified a directory, we use the current directory
-    if (command.input.size < 3) {
+    if (command.input.size == 1) {
       command.input = command.input + listOf(" ", currentDir.toString())
     }
     nonBuiltInCommand(command, programs, stdOutput, errOutput, null)
