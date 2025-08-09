@@ -101,6 +101,7 @@ class Commander(private val shell: Shell) {
     when (command.input.getOrNull(2)) {
       "-r" -> fileToHistory(command)
       "-w" -> historyToFile(command)
+      "-a" -> appendHistoryToFile(command)
       else -> {
         val history = shell.getHistory
         val limit = command.input.getOrNull(2)?.toIntOrNull() ?: history.size
@@ -113,6 +114,19 @@ class Commander(private val shell: Shell) {
     }
 
     closeChannels(stdOutput, errOutput)
+  }
+
+  private fun appendHistoryToFile(command: Command) {
+    if (command.input.size < 4) return
+    val historyFile = File(command.input[4])
+    // Create the parent directories if they do not exist
+    historyFile.parentFile?.mkdirs()
+    // We need only this history since the last append command
+    val lastAppend = shell.getHistory.drop(1).indexOfFirst { it.startsWith("history -a") }
+    val history =
+        shell.getHistory.also { if (lastAppend != -1) it.subList(lastAppend + 1, it.size) else it }
+    // Append the history to the file
+    historyFile.appendText(history.joinToString(""))
   }
 
   private fun historyToFile(command: Command) {
