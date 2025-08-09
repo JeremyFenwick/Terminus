@@ -86,7 +86,9 @@ object Commander {
       errOutput: SendChannel<String>,
       command: Command
   ) {
-    for ((i, entry) in history.withIndex()) {
+    // If the user has requested a specific number of history entries, we limit the output
+    val limit = if (command.input.size > 2) command.input[2].toInt() else history.size
+    for ((i, entry) in history.takeLast(limit).withIndex()) {
       stdOutput.send("  ${i + 1}  $entry\n")
     }
     closeChannels(stdOutput, errOutput)
