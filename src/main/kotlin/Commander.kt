@@ -122,7 +122,7 @@ class Commander(private val shell: Shell) {
     // Create the parent directories if they do not exist
     historyFile.parentFile?.mkdirs()
     // We need only this history since the last append command ignoring the current command
-    val lastAppend = shell.getHistory.drop(1).indexOfFirst { it.startsWith("history -a") }
+    val lastAppend = shell.getHistory.drop(1).indexOfLast { it.startsWith("history -a") }
     val history =
         shell.getHistory.also { if (lastAppend != -1) it.subList(lastAppend + 1, it.size) else it }
     // Append the history to the file
