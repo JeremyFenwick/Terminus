@@ -12,14 +12,22 @@ import kotlinx.coroutines.launch
 
 object Commander {
   var currentDir: Path = File(".").toPath().toAbsolutePath().normalize()
-  val history: MutableList<String> = mutableListOf<String>()
+  val history: MutableList<Pair<Int, String>> = mutableListOf()
 
   suspend fun run(command: Command, programs: AvailablePrograms) {
-    if (command.rawText != null) history.add(command.rawText)
+    if (command.rawText != null) addToHistory(command.rawText)
     val outChannel = Channel<String>(Channel.BUFFERED)
     val errChannel = Channel<String>(Channel.BUFFERED)
     execute(command, programs, outChannel, errChannel)
     writeOut(outChannel, errChannel, command)
+  }
+
+  private fun addToHistory(text: String) {
+    if (history.isEmpty()) history.add(Pair(1, text))
+    else {
+      val lastEntry = history.last()
+      history.add(Pair(lastEntry.first + 1, text))
+    }
   }
 
   private suspend fun execute(
@@ -88,8 +96,8 @@ object Commander {
   ) {
     // If the user has requested a specific number of history entries, we limit the output
     val limit = if (command.input.size > 2) command.input[2].toInt() else history.size
-    for ((i, entry) in history.takeLast(limit).withIndex()) {
-      stdOutput.send("  ${i + 1}  $entry\n")
+    for (entry in history.takeLast(limit)) {
+      stdOutput.send("  ${entry.first}  ${entry.second}\n")
     }
     closeChannels(stdOutput, errOutput)
   }
