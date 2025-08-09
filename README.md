@@ -19,7 +19,6 @@ Features include:
 - Run external programs
 - Pipe internal and external programs seamlessly. This solution does not rely on OS pipes, but instead implements its
   own using Kotlin's coroutines
-  piping mechanism to connect the output of one command to the input of another.
 - Redirection of input and output (both stdout and stderr)
 - Text prediction (implemented using a Trie)
 - Command history which can be navigated using the up and down arrow keys
