@@ -10,17 +10,16 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-// tail -f /tmp/file-43 | head -n 5
-// tail /tmp/file-43 | head -n 5
-
 object Commander {
   var currentDir: Path = File(".").toPath().toAbsolutePath().normalize()
+  val history: MutableList<String> = mutableListOf<String>()
 
   suspend fun run(command: Command, programs: AvailablePrograms) {
+    if (command.rawText != null) history.add(command.rawText)
     val outChannel = Channel<String>(Channel.BUFFERED)
     val errChannel = Channel<String>(Channel.BUFFERED)
     execute(command, programs, outChannel, errChannel)
-    write(outChannel, errChannel, command)
+    writeOut(outChannel, errChannel, command)
   }
 
   private suspend fun execute(
@@ -38,12 +37,12 @@ object Commander {
       CommandType.CD -> changeDirCommand(stdOutput, errOutput, command)
       CommandType.PIPE -> {
         // If the command is a pipe, we need to split it into multiple commands
-        val commandList = CommandGenerator.commandSplitter(command.rawInput)
+        val commandList = CommandGenerator.commandSplitter(command.input)
         pipeCommands(commandList, programs)
         closeChannels(stdOutput, errOutput)
       }
       CommandType.NOTBUILTIN -> nonBuiltinCommand(command, programs, stdOutput, errOutput, input)
-      CommandType.HISTORY -> throw NotImplementedError("History command is not implemented yet")
+      CommandType.HISTORY -> printHistory(stdOutput, errOutput, command)
     }
   }
 
@@ -82,12 +81,23 @@ object Commander {
     exitProcess(0)
   }
 
+  private suspend fun printHistory(
+      stdOutput: SendChannel<String>,
+      errOutput: SendChannel<String>,
+      command: Command
+  ) {
+    for ((i, entry) in history.withIndex()) {
+      stdOutput.send("  ${i + 1}  $entry\n")
+    }
+    closeChannels(stdOutput, errOutput)
+  }
+
   private suspend fun changeDirCommand(
       stdOutput: SendChannel<String>,
       errOutput: SendChannel<String>,
       command: Command
   ) {
-    if (command.rawInput.size < 3) {
+    if (command.input.size < 3) {
       closeChannels(stdOutput, errOutput)
       return
     }
@@ -96,9 +106,9 @@ object Commander {
     // Generate the new path the user has requested
     val userPath =
         when {
-          command.rawInput[2] == "~" -> Path.of(homeDir)
-          command.rawInput[2].startsWith("~/") -> Path.of(homeDir, command.rawInput[2].substring(2))
-          else -> Path.of(command.rawInput[2])
+          command.input[2] == "~" -> Path.of(homeDir)
+          command.input[2].startsWith("~/") -> Path.of(homeDir, command.input[2].substring(2))
+          else -> Path.of(command.input[2])
         }
 
     val proposedPath = currentDir.resolve(userPath).normalize()
@@ -118,7 +128,7 @@ object Commander {
       stdOut: SendChannel<String>,
       errOut: SendChannel<String>
   ) {
-    val message = command.rawInput.drop(2).joinToString("").trim() + "\n"
+    val message = command.input.drop(2).joinToString("").trim() + "\n"
     sendStandardMessage(message, stdOut, errOut)
   }
 
@@ -132,14 +142,14 @@ object Commander {
       errOutput: SendChannel<String>,
       input: ReceiveChannel<String>?
   ) {
-    if (command.rawInput.isEmpty()) {
+    if (command.input.isEmpty()) {
       closeChannels(stdOutput, errOutput)
       return
     }
 
     val program =
-        programs.executables.getOrElse(command.rawInput[0]) {
-          sendStandardMessage("${command.rawInput[0]}: command not found\n", stdOutput, errOutput)
+        programs.executables.getOrElse(command.input[0]) {
+          sendStandardMessage("${command.input[0]}: command not found\n", stdOutput, errOutput)
           return
         }
 
@@ -153,7 +163,7 @@ object Commander {
       errOutput: SendChannel<String>,
       input: ReceiveChannel<String>? = null
   ) = coroutineScope {
-    val args = command.rawInput.drop(2).filter() { it.isNotBlank() } // Filter out empty arguments
+    val args = command.input.drop(2).filter() { it.isNotBlank() } // Filter out empty arguments
     val process = ProcessBuilder(listOf("stdbuf", "-o0", program.name) + args).start()
     // Begin writing to the process's input stream
     input?.let { lines ->
@@ -203,11 +213,11 @@ object Commander {
       stdOutput: SendChannel<String>,
       errOutput: SendChannel<String>
   ) {
-    if (command.rawInput.size < 3) {
+    if (command.input.size < 3) {
       closeChannels(stdOutput, errOutput)
       return
     }
-    val sub = command.rawInput[2]
+    val sub = command.input[2]
     val message =
         when (val subCommand = CommandType.fromInput(sub)) {
           CommandType.NOTBUILTIN -> {
@@ -218,7 +228,7 @@ object Commander {
     sendStandardMessage(message, stdOutput, errOutput)
   }
 
-  private suspend fun write(
+  private suspend fun writeOut(
       stdOutput: ReceiveChannel<String>,
       errOutput: ReceiveChannel<String>,
       command: Command

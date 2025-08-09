@@ -2,6 +2,7 @@ import java.io.InputStreamReader
 
 class Shell(private val prompt: String = "$ ", words: List<String>) {
   private val trie = WordTrie(words)
+  private val history = mutableListOf<String>()
 
   fun readLine(): String {
     val reader = InputStreamReader(System.`in`)
@@ -73,6 +74,8 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     print("\r\u001B[2K") // Carriage return + clear line (ANSI escape code)
 
     resetTerminalMode()
+    // Add the input to history
+    history.add(buffer.toString())
     return buffer.toString().trim()
   }
 
