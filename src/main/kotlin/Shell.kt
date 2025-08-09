@@ -4,6 +4,8 @@ import java.io.InputStreamReader
 class Shell(private val prompt: String = "$ ", words: List<String>) {
   private val trie = WordTrie(words)
   private val history = mutableListOf<String>()
+  val getHistory: List<String>
+    get() = history.toList() // Return a copy of the history to prevent external modification
 
   fun readLine(): String {
     val reader = BufferedReader(InputStreamReader(System.`in`))
@@ -51,6 +53,13 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     }
 
     return buffer.toString().trim()
+  }
+
+  fun appendToHistory(lines: List<String>) {
+    for (line in lines) {
+      if (line.isBlank()) continue
+      history.add(line)
+    }
   }
 
   private fun readKeyPress(reader: BufferedReader): Int {
@@ -162,7 +171,7 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     print("\r\u001B[2K") // Carriage return + clear line (ANSI escape code)
     resetTerminalMode()
     history.add(buffer.toString())
-    if (history.size > HISTORYLIMIT) history.removeAt(0) // Limit history size
+    if (history.size > HISTORY_LIMIT) history.removeAt(0) // Limit history size
   }
 
   private fun setTerminalRawMode() {

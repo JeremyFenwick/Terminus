@@ -3,7 +3,6 @@ import java.io.File
 data class Command(
     val type: CommandType,
     val input: List<String>,
-    val rawText: String? = null,
     val outputFile: Output? = null,
     val errFile: Output? = null
 )

@@ -10,25 +10,14 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 
-object Commander {
+class Commander(private val shell: Shell) {
   var currentDir: Path = File(".").toPath().toAbsolutePath().normalize()
-  val history: MutableList<Pair<Int, String>> = mutableListOf()
 
   suspend fun run(command: Command, programs: AvailablePrograms) {
-    if (command.rawText != null) addToHistory(command.rawText)
     val outChannel = Channel<String>(Channel.BUFFERED)
     val errChannel = Channel<String>(Channel.BUFFERED)
     execute(command, programs, outChannel, errChannel)
     writeOut(outChannel, errChannel, command)
-  }
-
-  private fun addToHistory(text: String) {
-    if (history.isEmpty()) history.add(Pair(1, text))
-    else {
-      val lastEntry = history.last()
-      history.add(Pair(lastEntry.first + 1, text))
-      if (history.size > HISTORYLIMIT) history.removeAt(0)
-    }
   }
 
   private suspend fun execute(
@@ -36,7 +25,7 @@ object Commander {
       programs: AvailablePrograms,
       stdOutput: SendChannel<String>,
       errOutput: SendChannel<String>,
-      input: ReceiveChannel<String>? = null
+      input: ReceiveChannel<String>? = null,
   ) {
     when (command.type) {
       CommandType.ECHO -> echoCommand(command, stdOutput, errOutput)
@@ -51,7 +40,7 @@ object Commander {
         closeChannels(stdOutput, errOutput)
       }
       CommandType.NOTBUILTIN -> nonBuiltinCommand(command, programs, stdOutput, errOutput, input)
-      CommandType.HISTORY -> printHistory(stdOutput, errOutput, command)
+      CommandType.HISTORY -> historyCommand(stdOutput, errOutput, command)
     }
   }
 
@@ -90,17 +79,33 @@ object Commander {
     exitProcess(0)
   }
 
-  private suspend fun printHistory(
+  private suspend fun historyCommand(
       stdOutput: SendChannel<String>,
       errOutput: SendChannel<String>,
       command: Command
   ) {
+    if (command.input.size >= 2 && command.input[2] == "-r") {
+      fileToHistory(command)
+      closeChannels(stdOutput, errOutput)
+      return
+    }
+
     // If the user has requested a specific number of history entries, we limit the output
-    val limit = if (command.input.size > 2) command.input[2].toInt() else history.size
-    for (entry in history.takeLast(limit)) {
-      stdOutput.send("  ${entry.first}  ${entry.second}\n")
+    val history = shell.getHistory
+    val limit = command.input.getOrNull(2)?.toIntOrNull() ?: history.size
+    val startIndex = (history.size - limit).coerceAtLeast(0)
+    for (i in startIndex until history.size) {
+      stdOutput.send("  ${i + 1}  ${history[i]}\n") // Output should be 1 indexed
     }
     closeChannels(stdOutput, errOutput)
+  }
+
+  private fun fileToHistory(command: Command) {
+    if (command.input.size < 4) return
+    val historyFile = File(command.input[4])
+    if (!historyFile.exists()) return
+    val lines = historyFile.readLines().filter { it.isNotBlank() }
+    shell.appendToHistory(lines)
   }
 
   private suspend fun changeDirCommand(

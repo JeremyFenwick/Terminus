@@ -4,15 +4,15 @@ object CommandGenerator {
 
   fun parseInput(line: String): Command {
     val input = rawParser(line)
-    return inputToCommand(input, line)
+    return inputToCommand(input)
   }
 
-  fun inputToCommand(input: List<String>, rawText: String? = null): Command {
+  fun inputToCommand(input: List<String>): Command {
     if (input.isEmpty()) {
-      return Command(CommandType.NOTBUILTIN, input, rawText)
+      return Command(CommandType.NOTBUILTIN, input)
     }
     // Check if this is a pipe command
-    if (input.contains("|")) return Command(CommandType.PIPE, input, rawText)
+    if (input.contains("|")) return Command(CommandType.PIPE, input)
     // Output the command to either standard output or a file
     val redirectIndex = input.indexOfFirst { it in stdOutSymbols || it in stdErrSymbols }
     val commandList = if (redirectIndex != -1) input.subList(0, redirectIndex) else input
@@ -20,7 +20,7 @@ object CommandGenerator {
     val stdErr = getRedirect(input, stdErrSymbols)
     // Extract the command type and sub-command type
     val commandType = CommandType.fromInput(input[0])
-    return Command(commandType, commandList, rawText, stdOut, stdErr)
+    return Command(commandType, commandList, stdOut, stdErr)
   }
 
   fun commandSplitter(input: List<String>): List<Command> {

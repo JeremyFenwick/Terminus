@@ -1,15 +1,16 @@
 import kotlinx.coroutines.runBlocking
 
-const val HISTORYLIMIT = 1000 // top-level, compile-time constant
+const val HISTORY_LIMIT = 1000 // top-level, compile-time constant
 
 fun main() = runBlocking {
   val pathFolders = System.getenv("PATH")?.split(":") ?: listOf()
   val programs = AvailablePrograms(pathFolders)
   val shell = Shell("$ ", CommandType.commandList() + programs.executables.keys.toList())
+  val commander = Commander(shell)
 
   while (true) {
     val rawLine = shell.readLine()
     val command = CommandGenerator.parseInput(rawLine)
-    Commander.run(command, programs)
+    commander.run(command, programs)
   }
 }
