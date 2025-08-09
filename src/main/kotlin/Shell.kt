@@ -26,12 +26,12 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
           isUpArrow(currentChar) -> {
             justHitTab = false
             if (historyIndex > 0) historyIndex--
-            printHistory(historyIndex)
+            printHistory(historyIndex, buffer)
           }
           isDownArrow(currentChar) -> {
             justHitTab = false
             if (historyIndex < history.size - 1) historyIndex++
-            printHistory(historyIndex)
+            printHistory(historyIndex, buffer)
           }
           isBackspace(currentChar) -> {
             justHitTab = false
@@ -86,11 +86,13 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     }
   }
 
-  private fun printHistory(index: Int) {
+  private fun printHistory(index: Int, buffer: StringBuilder) {
     if (index >= 0 && index < history.size) {
       // Clear the current line and print the history entry
       print("\r\u001B[2K") // Carriage return + clear line
       print(prompt + history[index])
+      buffer.clear() // Clear the buffer to match the history entry
+      buffer.append(history[index])
     }
   }
 
@@ -160,6 +162,7 @@ class Shell(private val prompt: String = "$ ", words: List<String>) {
     print("\r\u001B[2K") // Carriage return + clear line (ANSI escape code)
     resetTerminalMode()
     history.add(buffer.toString())
+    if (history.size > HISTORYLIMIT) history.removeAt(0) // Limit history size
   }
 
   private fun setTerminalRawMode() {

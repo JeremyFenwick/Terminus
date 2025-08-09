@@ -27,6 +27,7 @@ object Commander {
     else {
       val lastEntry = history.last()
       history.add(Pair(lastEntry.first + 1, text))
+      if (history.size > HISTORYLIMIT) history.removeAt(0)
     }
   }
 
