@@ -121,10 +121,12 @@ class Commander(private val shell: Shell) {
     val historyFile = File(command.input[4])
     historyFile.parentFile?.mkdirs()
 
+    // We need to append
     val historyToAppend =
         shell.getHistory.let { fullHistory ->
           val lastAppend = fullHistory.dropLast(1).indexOfLast { it.startsWith("history -a") }
-          if (lastAppend != -1) fullHistory.subList(lastAppend, fullHistory.size) else fullHistory
+          if (lastAppend != -1) fullHistory.subList(lastAppend + 1, fullHistory.size)
+          else fullHistory
         }
 
     historyFile.appendText(historyToAppend.joinToString("\n") + "\n")
