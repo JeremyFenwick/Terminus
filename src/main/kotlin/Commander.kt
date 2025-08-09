@@ -122,8 +122,8 @@ class Commander(private val shell: Shell) {
     historyFile.parentFile?.mkdirs()
 
     val historyToAppend =
-        shell.getHistory.dropLast(1).let { fullHistory ->
-          val lastAppend = fullHistory.indexOfLast { it.startsWith("history -a") }
+        shell.getHistory.let { fullHistory ->
+          val lastAppend = fullHistory.dropLast(1).indexOfLast { it.startsWith("history -a") }
           if (lastAppend != -1) fullHistory.subList(lastAppend, fullHistory.size) else fullHistory
         }
 
