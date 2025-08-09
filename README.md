@@ -5,8 +5,7 @@ This a solution to the build your own shell challenge on Codecrafters using Kotl
 
 This is a POSIX compliant shell that's capable of
 interpreting shell commands, running external programs and builtin commands like
-cd, pwd, echo and more. Along the way, you'll learn about shell command parsing,
-REPLs, builtin commands, and more.
+cd, pwd, echo and more.
 
 As a challenge, no external libraries were used to implement the shell. The code is written in pure Kotlin and uses the
 standard library only.
