@@ -15,8 +15,7 @@ Features include:
 
 - Command & quote parsing
 - Builtin commands (cd, pwd, echo, exit, history, type, etc.)
-- Loads all programs from the PATH environment variable
-- Run external programs
+- Loads all programs from the PATH environment variable to be run with arguments
 - Pipe internal and external programs seamlessly. This solution does not rely on OS pipes, but instead implements its
   own using Kotlin's coroutines
 - Redirection of input and output (both stdout and stderr)
