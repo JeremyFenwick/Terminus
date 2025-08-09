@@ -18,7 +18,7 @@ Features include:
 - Pipe internal and external programs seamlessly. This solution does not rely on OS pipes, but instead implements its
   own using Kotlin's coroutines
 - Redirection of input and output (both stdout and stderr)
-- Text prediction (implemented using a Trie)
+- Text prediction & autocomplete (implemented using a Trie)
 - Command history which can be navigated using the up and down arrow keys
 - Ability to read and write to a history file by setting the HISTFILE environment variable
 
